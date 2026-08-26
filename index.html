@@ -12,7 +12,9 @@
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231E2A4A'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='600' fill='%23F7F4EC' text-anchor='middle'%3EBR%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600&family=Inter:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"></noscript>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -651,20 +653,20 @@ if (!prefersReducedMotion) {
 
 /* --- soft floating particle background --- */
 if (!prefersReducedMotion) {
+function startParticles(){
 const pCanvas = document.getElementById('particles');
 const pCtx = pCanvas.getContext('2d');
 function resizeCanvas(){ pCanvas.width = window.innerWidth; pCanvas.height = window.innerHeight; }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
-const particles = Array.from({length:36}, () => ({
+const isSmall = window.innerWidth < 700;
+const particleCount = isSmall ? 18 : 36;
+const particles = Array.from({length:particleCount}, () => ({
   x: Math.random()*pCanvas.width,
   y: Math.random()*pCanvas.height,
   z: Math.random()*1 + 0.3,
   speed: Math.random()*0.15 + 0.05
 }));
-function particleColor(){
-  return getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#1E2A4A';
-}
 function hexToRgba(hex, alpha){
   hex = hex.replace('#','');
   if (hex.length === 3) hex = hex.split('').map(c => c+c).join('');
@@ -672,21 +674,34 @@ function hexToRgba(hex, alpha){
   const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
   return `rgba(${r},${g},${b},${alpha})`;
 }
+/* cache the accent color instead of calling getComputedStyle every frame;
+   refresh only when the theme actually changes */
+let cachedColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#1E2A4A';
+const themeObserver = new MutationObserver(() => {
+  cachedColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#1E2A4A';
+});
+themeObserver.observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
 function tickParticles(){
   pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
-  const color = particleColor();
   particles.forEach(p => {
     p.y -= p.speed * p.z;
     if (p.y < -5) { p.y = pCanvas.height + 5; p.x = Math.random()*pCanvas.width; }
     const r = p.z * 1.6;
     pCtx.beginPath();
     pCtx.arc(p.x, p.y, r, 0, Math.PI*2);
-    pCtx.fillStyle = hexToRgba(color, 0.10 + p.z*0.12);
+    pCtx.fillStyle = hexToRgba(cachedColor, 0.10 + p.z*0.12);
     pCtx.fill();
   });
   requestAnimationFrame(tickParticles);
 }
 tickParticles();
+}
+/* delay start so particles don't compete with initial content render */
+if ('requestIdleCallback' in window) {
+  requestIdleCallback(startParticles, { timeout: 1500 });
+} else {
+  setTimeout(startParticles, 200);
+}
 }
 </script>
 </body>
